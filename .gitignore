@@ -1,0 +1,15 @@
+# Node.js / Backend & Frontend
+node_modules/
+backend/uploads/*
+!backend/uploads/.gitkeep
+backend/.env
+frontend/.env
+frontend/.env.local
+frontend/dist/
+coverage/
+
+# OS / IDE
+.DS_Store
+.vscode/
+.idea/
+*.log
