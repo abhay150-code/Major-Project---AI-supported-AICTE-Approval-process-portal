@@ -71,3 +71,36 @@ model Institution {
   @@map("institutions")
 }
 
+model Application {
+  id                 String            @id @default(uuid())
+  institutionId      String            @map("institution_id")
+  assignedReviewerId String?           @map("assigned_reviewer_id")
+  applicationNumber  String            @unique @map("application_number")
+  applicationType    ApplicationType   @map("application_type")
+  status             ApplicationStatus @default(DRAFT)
+  createdAt          DateTime          @default(now()) @map("created_at")
+  updatedAt          DateTime          @updatedAt @map("updated_at")
+
+  institution      Institution           @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  assignedReviewer User?                 @relation("ReviewerApplications", fields: [assignedReviewerId], references: [id], onDelete: SetNull)
+  documents        ApplicationDocument[]
+  comments         ReviewComment[]
+
+  @@index([institutionId])
+  @@index([assignedReviewerId])
+  @@index([status])
+  @@map("applications")
+}
+
+model DocumentRequirement {
+  id              String           @id @default(uuid())
+  name            String           @unique
+  description     String
+  applicationType RequirementScope @default(ALL) @map("application_type")
+  isRequired      Boolean          @default(true) @map("is_required")
+
+  applicationDocuments ApplicationDocument[]
+
+  @@map("document_requirements")
+}
+
