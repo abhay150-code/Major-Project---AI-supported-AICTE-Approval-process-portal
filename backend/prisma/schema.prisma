@@ -104,3 +104,31 @@ model DocumentRequirement {
   @@map("document_requirements")
 }
 
+model ApplicationDocument {
+  id            String         @id @default(uuid())
+  applicationId String         @map("application_id")
+  requirementId String         @map("requirement_id")
+  status        DocumentStatus @default(PENDING)
+  submittedAt   DateTime?      @map("submitted_at")
+
+  application Application         @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  requirement DocumentRequirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+
+  @@unique([applicationId, requirementId])
+  @@index([applicationId])
+  @@map("application_documents")
+}
+
+model ReviewComment {
+  id            String   @id @default(uuid())
+  applicationId String   @map("application_id")
+  reviewerId    String   @map("reviewer_id")
+  comment       String
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  reviewer    User        @relation(fields: [reviewerId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId])
+  @@map("review_comments")
+}
