@@ -1,0 +1,73 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  REVIEWER
+  INSTITUTE
+}
+
+enum ApplicationType {
+  NEW_APPROVAL
+  RENEWAL
+}
+
+enum RequirementScope {
+  ALL
+  NEW_APPROVAL
+  RENEWAL
+}
+
+enum ApplicationStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  CORRECTION_REQUIRED
+  APPROVED
+  REJECTED
+}
+
+enum DocumentStatus {
+  PENDING
+  SUBMITTED
+  VERIFIED
+  REJECTED
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role     @default(INSTITUTE)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  institution          Institution?
+  assignedApplications Application[]   @relation("ReviewerApplications")
+  reviewComments       ReviewComment[]
+
+  @@index([role])
+  @@map("users")
+}
+
+model Institution {
+  id                String   @id @default(uuid())
+  userId            String   @unique @map("user_id")
+  institutionName   String   @map("institution_name")
+  address           String
+  establishmentYear Int      @map("establishment_year")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  applications Application[]
+
+  @@map("institutions")
+}
+
