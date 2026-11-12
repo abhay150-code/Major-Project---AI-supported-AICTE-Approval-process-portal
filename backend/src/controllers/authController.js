@@ -10,23 +10,46 @@ function signToken(user) {
   );
 }
 
+// POST /api/auth/register
 async function register(req, res, next) {
   try {
-    const { name, email, password, role, institutionName, address, establishmentYear } = req.body;
+    const {
+      name,
+      email,
+      password,
+      role,
+      institutionName,
+      address,
+      establishmentYear,
+    } = req.body;
+
     if (!name || !email || !password) {
       return res.status(400).json({ message: 'Name, email, and password are required' });
     }
+    if (String(password).length < 6) {
+      return res.status(400).json({ message: 'Password must be at least 6 characters' });
+    }
+
     const userRole = role && ['ADMIN', 'REVIEWER', 'INSTITUTE'].includes(role) ? role : 'INSTITUTE';
-    const existingUser = await prisma.user.findUnique({ where: { email } });
+
+    const existingUser = await prisma.user.findUnique({ where: { email: email } });
     if (existingUser) {
       return res.status(409).json({ message: 'Email already registered' });
     }
+
     const hashedPassword = await bcrypt.hash(password, 10);
+
     const createdUser = await prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
-        data: { name: name.trim(), email, password: hashedPassword, role: userRole },
+        data: {
+          name: name.trim(),
+          email: email,
+          password: hashedPassword,
+          role: userRole,
+        },
         select: { id: true, name: true, email: true, role: true, createdAt: true },
       });
+
       if (userRole === 'INSTITUTE') {
         await tx.institution.create({
           data: {
@@ -37,8 +60,10 @@ async function register(req, res, next) {
           },
         });
       }
+
       return user;
     });
+
     const token = signToken(createdUser);
     res.status(201).json({ token, user: createdUser });
   } catch (err) {
@@ -46,4 +71,45 @@ async function register(req, res, next) {
   }
 }
 
-module.exports = { register };
+// POST /api/auth/login
+async function login(req, res, next) {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ message: 'Email and password are required' });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email: email },
+    });
+    if (!user) {
+      return res.status(401).json({ message: 'Invalid email or password' });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ message: 'Invalid email or password' });
+    }
+
+    const safeUser = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      createdAt: user.createdAt,
+    };
+
+    const token = signToken(safeUser);
+    res.json({ token, user: safeUser });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// GET /api/auth/me
+async function getMe(req, res) {
+  res.json(req.user);
+}
+
+module.exports = { register, login, getMe };
