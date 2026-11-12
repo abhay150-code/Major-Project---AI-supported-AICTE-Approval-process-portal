@@ -78,8 +78,122 @@ async function main() {
     },
   });
 
-  
-  console.log('Users seeded.');
+  // 4. Demonstration Document Requirements (not official AICTE regulations)
+  const requirementsData = [
+    {
+      name: 'Institutional Profile',
+      description: 'Demonstration requirement: Basic institute details and trust registration',
+      applicationType: 'ALL',
+      isRequired: true,
+    },
+    {
+      name: 'Faculty Information',
+      description: 'Demonstration requirement: List of qualified teaching faculty members',
+      applicationType: 'ALL',
+      isRequired: true,
+    },
+    {
+      name: 'Infrastructure Details',
+      description: 'Demonstration requirement: Classrooms, laboratories, and library details',
+      applicationType: 'ALL',
+      isRequired: true,
+    },
+    {
+      name: 'Land / Building Documents',
+      description: 'Demonstration requirement: Ownership/lease records and building plan',
+      applicationType: 'NEW_APPROVAL',
+      isRequired: true,
+    },
+    {
+      name: 'Course & Intake Statement',
+      description: 'Demonstration requirement: Proposed or existing programs and intake',
+      applicationType: 'ALL',
+      isRequired: true,
+    },
+  ];
+
+  const requirements = [];
+  for (const req of requirementsData) {
+    const saved = await prisma.documentRequirement.upsert({
+      where: { name: req.name },
+      update: {},
+      create: req,
+    });
+    requirements.push(saved);
+  }
+
+  // 5. Sample Applications for Institute 1
+  const existingApp1 = await prisma.application.findUnique({
+    where: { applicationNumber: 'APP-2026-0001' },
+  });
+
+  if (!existingApp1) {
+    const app1 = await prisma.application.create({
+      data: {
+        institutionId: inst1.id,
+        assignedReviewerId: reviewer.id,
+        applicationNumber: 'APP-2026-0001',
+        applicationType: 'NEW_APPROVAL',
+        status: 'UNDER_REVIEW',
+      },
+    });
+
+    for (const req of requirements) {
+      await prisma.applicationDocument.create({
+        data: {
+          applicationId: app1.id,
+          requirementId: req.id,
+          status: 'SUBMITTED',
+          submittedAt: new Date(),
+        },
+      });
+    }
+
+    await prisma.reviewComment.create({
+      data: {
+        applicationId: app1.id,
+        reviewerId: reviewer.id,
+        comment: 'Initial checklist documents received. Reviewing infrastructure details.',
+      },
+    });
+  }
+
+  const existingApp2 = await prisma.application.findUnique({
+    where: { applicationNumber: 'APP-2026-0002' },
+  });
+
+  if (!existingApp2) {
+    const app2 = await prisma.application.create({
+      data: {
+        institutionId: inst1.id,
+        applicationNumber: 'APP-2026-0002',
+        applicationType: 'RENEWAL',
+        status: 'DRAFT',
+      },
+    });
+
+    const renewalReqs = requirements.filter(
+      (r) => r.applicationType === 'ALL' || r.applicationType === 'RENEWAL'
+    );
+    for (const req of renewalReqs) {
+      await prisma.applicationDocument.create({
+        data: {
+          applicationId: app2.id,
+          requirementId: req.id,
+          status: 'PENDING',
+        },
+      });
+    }
+  }
+
+  console.log('Seed completed successfully.');
 }
 
-main().finally(() => prisma.$disconnect());
+main()
+  .catch((err) => {
+    console.error('Seed error:', err);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });
