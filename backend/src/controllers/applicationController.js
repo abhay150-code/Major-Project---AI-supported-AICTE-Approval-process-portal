@@ -144,7 +144,7 @@ async function updateApplication(req, res, next) {
       return res.status(403).json({ message: 'Access denied' });
     }
 
-    if (!['DRAFT', 'CORRECTION_REQUIRED'].includes(application.status)) {
+    if (!['DRAFT'].includes(application.status)) {
       return res.status(409).json({
         message: 'Only DRAFT or CORRECTION_REQUIRED applications can be edited',
       });
@@ -195,5 +195,82 @@ async function updateApplication(req, res, next) {
   }
 }
 
+// POST /api/applications/:id/submit (Database Transaction Example #2)
+async function submitApplication(req, res, next) {
+  try {
+    const { submittedRequirementIds } = req.body || {};
 
-module.exports = { createApplication, listApplications, getApplicationById, updateApplication };
+    const application = await prisma.application.findUnique({
+      where: { id: req.params.id },
+    });
+    if (!application) {
+      return res.status(404).json({ message: 'Application not found' });
+    }
+
+    const inst = await prisma.institution.findUnique({ where: { userId: req.user.id } });
+    if (!inst || application.institutionId !== inst.id) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    if (!['DRAFT', 'CORRECTION_REQUIRED'].includes(application.status)) {
+      return res.status(409).json({
+        message: 'Only DRAFT or CORRECTION_REQUIRED applications can be submitted',
+      });
+    }
+
+    // Atomic Prisma Transaction: update checklist records and application status together
+    const submittedApp = await prisma.$transaction(async (tx) => {
+      if (Array.isArray(submittedRequirementIds) && submittedRequirementIds.length > 0) {
+        await tx.applicationDocument.updateMany({
+          where: {
+            applicationId: application.id,
+            requirementId: { in: submittedRequirementIds },
+          },
+          data: {
+            status: 'SUBMITTED',
+            submittedAt: new Date(),
+          },
+        });
+      }
+
+      const docs = await tx.applicationDocument.findMany({
+        where: { applicationId: application.id },
+        include: { requirement: true },
+      });
+
+      const missingRequired = docs.filter(
+        (d) => d.requirement.isRequired && d.status === 'PENDING'
+      );
+      if (missingRequired.length > 0) {
+        const err = new Error(
+          `Cannot submit: required checklist items still pending (${missingRequired
+            .map((d) => d.requirement.name)
+            .join(', ')})`
+        );
+        err.statusCode = 400;
+        throw err;
+      }
+
+      return tx.application.update({
+        where: { id: application.id },
+        data: { status: 'SUBMITTED' },
+        include: {
+          institution: true,
+          documents: { include: { requirement: true } },
+        },
+      });
+    });
+
+    res.json(submittedApp);
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = {
+  createApplication,
+  listApplications,
+  getApplicationById,
+  updateApplication,
+  submitApplication,
+};
