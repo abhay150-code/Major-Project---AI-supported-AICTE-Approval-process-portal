@@ -83,5 +83,55 @@ async function listAllApplications(req, res, next) {
   }
 }
 
+// POST /api/admin/assign-reviewer (Database Transaction Example #1)
+async function assignReviewer(req, res, next) {
+  try {
+    const { applicationId, reviewerId } = req.body;
+    if (!applicationId || !reviewerId) {
+      return res.status(400).json({ message: 'applicationId and reviewerId are required' });
+    }
 
-module.exports = { getDashboard, listUsers, listAllApplications };
+    const updatedApp = await prisma.$transaction(async (tx) => {
+      const application = await tx.application.findUnique({ where: { id: applicationId } });
+      if (!application) {
+        const err = new Error('Application not found');
+        err.statusCode = 404;
+        throw err;
+      }
+
+            const reviewer = await tx.user.findUnique({ where: { id: reviewerId } });
+      if (!reviewer || reviewer.role !== 'REVIEWER') {
+        const err = new Error('Valid REVIEWER user not found');
+        err.statusCode = 400;
+        throw err;
+      }
+
+      // Operation 1: assign reviewer
+      await tx.application.update({
+        where: { id: applicationId },
+        data: { assignedReviewerId: reviewerId },
+      });
+
+      // Operation 2: move status to UNDER_REVIEW atomically
+      return tx.application.update({
+        where: { id: applicationId },
+        data: { status: 'UNDER_REVIEW' },
+        include: {
+          institution: true,
+          assignedReviewer: { select: { id: true, name: true, email: true } },
+        },
+      });
+    });
+
+    res.json(updatedApp);
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = {
+  getDashboard,
+  listUsers,
+  listAllApplications,
+  assignReviewer,
+};
