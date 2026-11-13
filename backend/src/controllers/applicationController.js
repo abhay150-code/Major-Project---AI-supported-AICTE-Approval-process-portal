@@ -87,5 +87,113 @@ async function listApplications(req, res, next) {
   }
 }
 
+// GET /api/applications/:id
+async function getApplicationById(req, res, next) {
+  try {
+    const application = await prisma.application.findUnique({
+      where: { id: req.params.id },
+      include: {
+        institution: true,
+        assignedReviewer: { select: { id: true, name: true, email: true } },
+        documents: {
+          include: { requirement: true },
+          orderBy: { requirement: { name: 'asc' } },
+        },
+        comments: {
+          include: { reviewer: { select: { id: true, name: true, email: true } } },
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+    });
 
-module.exports = { createApplication, listApplications };
+    if (!application) {
+      return res.status(404).json({ message: 'Application not found' });
+    }
+
+    if (req.user.role === 'INSTITUTE') {
+      const inst = await prisma.institution.findUnique({ where: { userId: req.user.id } });
+      if (!inst || application.institutionId !== inst.id) {
+        return res.status(403).json({ message: 'Access denied' });
+      }
+    } else if (req.user.role === 'REVIEWER') {
+      if (application.assignedReviewerId !== req.user.id) {
+        return res.status(403).json({ message: 'Access denied' });
+      }
+    }
+
+    res.json(application);
+  } catch (err) {
+    next(err);
+  }
+}
+
+// PUT /api/applications/:id
+async function updateApplication(req, res, next) {
+  try {
+    const { applicationType, documents } = req.body;
+    const application = await prisma.application.findUnique({
+      where: { id: req.params.id },
+    });
+
+    if (!application) {
+      return res.status(404).json({ message: 'Application not found' });
+    }
+
+    const inst = await prisma.institution.findUnique({ where: { userId: req.user.id } });
+    if (!inst || application.institutionId !== inst.id) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    if (!['DRAFT', 'CORRECTION_REQUIRED'].includes(application.status)) {
+      return res.status(409).json({
+        message: 'Only DRAFT or CORRECTION_REQUIRED applications can be edited',
+      });
+    }
+
+    if (applicationType && !['NEW_APPROVAL', 'RENEWAL'].includes(applicationType)) {
+      return res.status(400).json({ message: 'Invalid applicationType' });
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      if (applicationType && application.status === 'DRAFT') {
+        await tx.application.update({
+          where: { id: application.id },
+          data: { applicationType },
+        });
+      }
+
+      if (Array.isArray(documents)) {
+        for (const docItem of documents) {
+          if (!docItem.requirementId || !['PENDING', 'SUBMITTED'].includes(docItem.status)) {
+            continue;
+          }
+          await tx.applicationDocument.updateMany({
+            where: {
+              applicationId: application.id,
+              requirementId: docItem.requirementId,
+            },
+            data: {
+              status: docItem.status,
+              submittedAt: docItem.status === 'SUBMITTED' ? new Date() : null,
+            },
+          });
+        }
+      }
+
+      return tx.application.findUnique({
+        where: { id: application.id },
+        include: {
+          institution: true,
+          documents: { include: { requirement: true } },
+        },
+      });
+    });
+
+    res.json(updated);
+  } catch (err) {
+    next(err);
+  }
+}
+
+
+module.exports = { createApplication, listApplications, getApplicationById, updateApplication };
