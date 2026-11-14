@@ -32,7 +32,7 @@ async function register(req, res, next) {
 
     const userRole = role && ['ADMIN', 'REVIEWER', 'INSTITUTE'].includes(role) ? role : 'INSTITUTE';
 
-    const existingUser = await prisma.user.findUnique({ where: { email: email } });
+    const existingUser = await prisma.user.findUnique({ where: { email: email.trim().toLowerCase() } });
     if (existingUser) {
       return res.status(409).json({ message: 'Email already registered' });
     }
@@ -43,7 +43,7 @@ async function register(req, res, next) {
       const user = await tx.user.create({
         data: {
           name: name.trim(),
-          email: email,
+          email: email.trim().toLowerCase(),
           password: hashedPassword,
           role: userRole,
         },
@@ -81,7 +81,7 @@ async function login(req, res, next) {
     }
 
     const user = await prisma.user.findUnique({
-      where: { email: email },
+      where: { email: email.trim().toLowerCase() },
     });
     if (!user) {
       return res.status(401).json({ message: 'Invalid email or password' });
