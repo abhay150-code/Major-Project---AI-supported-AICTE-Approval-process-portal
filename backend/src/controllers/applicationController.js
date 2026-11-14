@@ -144,7 +144,7 @@ async function updateApplication(req, res, next) {
       return res.status(403).json({ message: 'Access denied' });
     }
 
-    if (!['DRAFT'].includes(application.status)) {
+    if (!['DRAFT', 'CORRECTION_REQUIRED'].includes(application.status)) {
       return res.status(409).json({
         message: 'Only DRAFT or CORRECTION_REQUIRED applications can be edited',
       });

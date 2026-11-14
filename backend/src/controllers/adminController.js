@@ -99,7 +99,13 @@ async function assignReviewer(req, res, next) {
         throw err;
       }
 
-            const reviewer = await tx.user.findUnique({ where: { id: reviewerId } });
+      if (['APPROVED', 'REJECTED'].includes(application.status)) {
+        const err = new Error('Cannot reassign an application that already has a final decision');
+        err.statusCode = 409;
+        throw err;
+      }
+
+      const reviewer = await tx.user.findUnique({ where: { id: reviewerId } });
       if (!reviewer || reviewer.role !== 'REVIEWER') {
         const err = new Error('Valid REVIEWER user not found');
         err.statusCode = 400;
