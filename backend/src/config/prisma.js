@@ -1,28 +1,30 @@
+const path = require('path');
+// Ensure dotenv is loaded regardless of process launch location
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
+require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
+require('dotenv').config();
+
 const { PrismaClient } = require('@prisma/client');
 const { PrismaPg } = require('@prisma/adapter-pg');
 const { Pool } = require('pg');
 
-let databaseUrl = process.env.DATABASE_URL || '';
-
-// Ensure sslmode=require is appended for remote cloud databases (e.g. Supabase pooler)
-if (
-  databaseUrl &&
-  !databaseUrl.includes('localhost') &&
-  !databaseUrl.includes('127.0.0.1') &&
-  !databaseUrl.includes('sslmode=')
-) {
-  databaseUrl = `${databaseUrl}${databaseUrl.includes('?') ? '&' : '?'}sslmode=require`;
-}
+let rawDatabaseUrl = process.env.DATABASE_URL || '';
 
 const isRemote =
-  databaseUrl &&
-  !databaseUrl.includes('localhost') &&
-  !databaseUrl.includes('127.0.0.1');
+  rawDatabaseUrl &&
+  !rawDatabaseUrl.includes('localhost') &&
+  !rawDatabaseUrl.includes('127.0.0.1');
+
+// Strip any sslmode query parameter so pg-connection-string does not force verify-full
+// which causes 'self-signed certificate in certificate chain' errors with Supabase pooler
+const cleanDatabaseUrl = rawDatabaseUrl
+  ? rawDatabaseUrl.replace(/[?&]sslmode=[^&]+/g, '').replace(/\?$/, '')
+  : '';
 
 const pool = new Pool({
-  connectionString: databaseUrl,
+  connectionString: cleanDatabaseUrl,
   ...(isRemote ? { ssl: { rejectUnauthorized: false } } : {}),
-  connectionTimeoutMillis: 10000,
+  connectionTimeoutMillis: 15000,
 });
 
 pool.on('error', (err) => {

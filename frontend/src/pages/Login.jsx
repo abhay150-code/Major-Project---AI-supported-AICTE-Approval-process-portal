@@ -184,6 +184,34 @@ export default function Login() {
               </p>
             </div>
 
+            {/* Quick Demo Login Fillers */}
+            <div className="mt-6 pt-4 border-t border-slate-200">
+              <p className="text-xs text-slate-500 mb-2 font-medium text-center">Quick Demo Accounts (Click to test):</p>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setForm({ email: 'institute1@demo.com', password: 'Institute@123', rememberMe: false })}
+                  className="px-2 py-1.5 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium transition text-center"
+                >
+                  🏫 Institute
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setForm({ email: 'reviewer@aicte.demo', password: 'Reviewer@123', rememberMe: false })}
+                  className="px-2 py-1.5 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium transition text-center"
+                >
+                  🔍 Reviewer
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setForm({ email: 'admin@aicte.demo', password: 'Admin@123', rememberMe: false })}
+                  className="px-2 py-1.5 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium transition text-center"
+                >
+                  ⚡ Admin
+                </button>
+              </div>
+            </div>
+
             <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
               <p className="text-xs text-amber-700 text-center">
                 ⚠️ This is a student prototype. Not an official AICTE system.
