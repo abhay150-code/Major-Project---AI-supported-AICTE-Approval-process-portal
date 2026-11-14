@@ -37,7 +37,13 @@ export default function Login() {
       else if (user?.role === 'ADMIN') navigate('/admin')
       else navigate('/')
     } catch (err) {
-      setError(err.response?.data?.message || 'Invalid credentials. Please try again.')
+      if (!err.response) {
+        setError(
+          `Unable to connect to server (${err.message || 'Network Error'}). If hosted on Render free tier, the backend server may take 30-40 seconds to wake up from idle mode. Please wait a moment and try again.`
+        )
+      } else {
+        setError(err.response?.data?.message || 'Invalid credentials. Please try again.')
+      }
     } finally {
       setLoading(false)
     }

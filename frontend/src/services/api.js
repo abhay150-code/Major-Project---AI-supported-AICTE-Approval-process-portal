@@ -1,9 +1,27 @@
 import axios from 'axios'
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001'
+export function getApiBaseUrl() {
+  const envUrl = import.meta.env.VITE_API_URL
+  if (envUrl && !envUrl.includes('localhost')) {
+    return envUrl.replace(/\/$/, '')
+  }
+
+  // Automatic detection when hosted on Render
+  if (typeof window !== 'undefined' && window.location.hostname.endsWith('.onrender.com')) {
+    if (window.location.hostname.includes('frontend')) {
+      return `https://${window.location.hostname.replace('frontend', 'backend')}`
+    }
+  }
+
+  return envUrl || 'http://localhost:5001'
+}
+
+export const API_BASE_URL = getApiBaseUrl()
+console.log('[AICTE Portal] Connected to API endpoint:', API_BASE_URL)
 
 const api = axios.create({
   baseURL: API_BASE_URL,
+  timeout: 60000, // 60s timeout to allow Render free tier cold-starts
   headers: {
     'Content-Type': 'application/json',
   },
