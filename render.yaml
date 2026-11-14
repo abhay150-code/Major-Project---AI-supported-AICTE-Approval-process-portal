@@ -1,15 +1,16 @@
 services:
-  # ==========================================
-  # 1. AICTE Backend Express API (Web Service)
-  # ==========================================
+  # ========================================================
+  # AICTE Smart Approval Portal - Unified Full-Stack Service
+  # Serves both the React Frontend (Vite) and Express Backend
+  # on a single URL with zero CORS or API configuration issues.
+  # ========================================================
   - type: web
-    name: aicte-portal-backend
+    name: aicte-smart-portal
     env: node
     plan: free
     region: oregon
-    rootDir: backend
-    buildCommand: npm install && npx prisma generate
-    startCommand: npm start
+    buildCommand: cd frontend && npm install && npm run build && cd ../backend && npm install && npx prisma generate
+    startCommand: cd backend && npm start
     healthCheckPath: /api/health
     autoDeploy: true
     envVars:
@@ -21,31 +22,3 @@ services:
         generateValue: true
       - key: JWT_EXPIRES_IN
         value: 60m
-      - key: FRONTEND_URL
-        fromService:
-          type: web
-          name: aicte-portal-frontend
-          property: url
-
-  # ==========================================
-  # 2. AICTE Frontend React Vite (Static Site)
-  # ==========================================
-  - type: web
-    env: static
-    name: aicte-portal-frontend
-    plan: free
-    region: oregon
-    rootDir: frontend
-    buildCommand: npm install && npm run build
-    staticPublishPath: dist
-    autoDeploy: true
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
-    envVars:
-      - key: VITE_API_URL
-        fromService:
-          type: web
-          name: aicte-portal-backend
-          property: url

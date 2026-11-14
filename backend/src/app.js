@@ -2,6 +2,9 @@ const express = require('express');
 const cors = require('cors');
 const errorMiddleware = require('./middleware/errorMiddleware');
 
+const path = require('path');
+const fs = require('fs');
+
 const authRoutes = require('./routes/authRoutes');
 const institutionRoutes = require('./routes/institutionRoutes');
 const applicationRoutes = require('./routes/applicationRoutes');
@@ -55,7 +58,29 @@ app.use('/api/applications', applicationRoutes);
 app.use('/api', reviewerRoutes);
 app.use('/api/admin', adminRoutes);
 
+// Static frontend serving when built
+const frontendDist = path.resolve(__dirname, '../../frontend/dist');
+if (fs.existsSync(frontendDist)) {
+  app.use(express.static(frontendDist));
+
+  // SPA fallback for frontend client-side routes (e.g. /login, /institute)
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api')) {
+      return next();
+    }
+    res.sendFile(path.join(frontendDist, 'index.html'));
+  });
+}
+
+// 404 for unhandled API routes
+app.use('/api/*', (req, res) => {
+  res.status(404).json({ message: 'API route not found' });
+});
+
 app.use((req, res) => {
+  if (fs.existsSync(frontendDist)) {
+    return res.sendFile(path.join(frontendDist, 'index.html'));
+  }
   res.status(404).json({ message: 'Route not found' });
 });
 

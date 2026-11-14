@@ -6,11 +6,14 @@ export function getApiBaseUrl() {
     return envUrl.replace(/\/$/, '')
   }
 
-  // Automatic detection when hosted on Render
-  if (typeof window !== 'undefined' && window.location.hostname.endsWith('.onrender.com')) {
-    if (window.location.hostname.includes('frontend')) {
-      return `https://${window.location.hostname.replace('frontend', 'backend')}`
+  // When running in the browser, default to relative origin so it works on any domain/tunnel
+  if (typeof window !== 'undefined') {
+    // If running in Vite local dev server on port 3000, proxy to port 5001
+    if (window.location.port === '3000' || window.location.port === '5173') {
+      return 'http://localhost:5001'
     }
+    // When served from Express or on deployed domain, use same origin
+    return ''
   }
 
   return envUrl || 'http://localhost:5001'
