@@ -2,7 +2,7 @@ require('dotenv/config');
 const app = require('./app');
 const prisma = require('./config/prisma');
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
 async function startServer() {
   try {
